@@ -1,1 +1,2 @@
 print("Lipstick")
+print("Yes")
