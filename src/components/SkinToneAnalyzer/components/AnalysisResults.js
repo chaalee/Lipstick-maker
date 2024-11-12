@@ -1,16 +1,21 @@
 // src/components/SkinToneAnalyzer/components/AnalysisResults.js
 import React from 'react';
-import { Camera, History, RefreshCw, Info, Palette } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Camera, Info, Palette } from 'lucide-react';
 import { useSkinTone } from '../context/SkinToneContext';
-import { exportAnalysisData } from '../../../utils/dataExport';
-import { SEASONAL_LIP_COLORS } from '../constants/colors';
+import { SEASONAL_DATA } from '../constants/seasonalData';
 
-const LipColorPalette = ({ colors }) => (
+const LipColorPalette = ({ colors, onSelectColor }) => (
   <div className="grid grid-cols-3 gap-4">
     {colors.map((color, i) => (
-      <div key={i} className="text-center">
+      <div 
+        key={i} 
+        className="text-center cursor-pointer group"
+        onClick={() => onSelectColor(color)}
+      >
         <div 
-          className="w-12 h-12 rounded-full mx-auto mb-2 shadow-md border-2 border-white transition-transform hover:scale-110"
+          className="w-12 h-12 rounded-full mx-auto mb-2 shadow-md border-2 border-white 
+                     transition-all group-hover:scale-110 group-hover:shadow-lg"
           style={{ backgroundColor: color.color }}
           title={color.name}
         />
@@ -21,19 +26,34 @@ const LipColorPalette = ({ colors }) => (
 );
 
 const AnalysisMetrics = ({ analysis }) => (
-  <div className="space-y-1 text-sm">
+  <div className="space-y-1.5 text-sm">
     <p>Undertone: <span className="font-medium">{analysis.undertone}</span></p>
     <p>Lightness: <span className="font-medium">{analysis.lightness}</span></p>
-    <p>Fitzpatrick Scale: <span className="font-medium">{analysis.fitzpatrickType}</span></p>
+    {/* <p>Fitzpatrick Scale: <span className="font-medium">{analysis.fitzpatrickType}</span></p> */}
     <p>Lab Values: L*: {analysis.labValues.L}, a*: {analysis.labValues.a}, b*: {analysis.labValues.b}</p>
-    <p>Analysis Time: {analysis.performanceMetrics.analysisTime.toFixed(2)}ms</p>
+    {/* <p>Analysis Time: {analysis.performanceMetrics.analysisTime.toFixed(2)}ms</p> */}
   </div>
 );
 
 const AnalysisResults = () => {
+  const navigate = useNavigate();
   const { analysis, lightCondition } = useSkinTone();
 
   if (!analysis) return null;
+  const season = analysis.seasons[0];
+  const seasonalData = SEASONAL_DATA[season];
+
+  const handleColorSelect = (color) => {
+    // Create the shade data object with season-specific description
+    const shadeData = {
+      colorType: color.name,
+      description: seasonalData.description,
+      color: color.color
+    };
+
+    // Navigate to lipstick page with the shade data
+    navigate('/lipstick', { state: { shade: shadeData } });
+  };
 
   const getLightingAdvice = () => {
     switch(lightCondition) {
@@ -43,6 +63,8 @@ const AnalysisResults = () => {
       default: return 'Analyzing lighting conditions...';
     }
   };
+
+
 
   return (
     <div className="lg:w-96">
@@ -57,12 +79,15 @@ const AnalysisResults = () => {
         <div className="space-y-8">
           {/* Seasons */}
           <div>
-            <h2 className="text-3xl font-serif mb-2">{analysis.seasons[0]}</h2>
-            <p className="text-sm text-gray-600">
-              {analysis.seasons.length > 1 
-                ? `Also compatible with ${analysis.seasons.slice(1).join(', ')}`
-                : 'Primary season'}
-            </p>
+            <h2 className="text-3xl font-serif mb-2">{season}</h2>
+            {/* <p className="text-sm text-gray-600 leading-relaxed">
+              {seasonalData.description}
+            </p> */}
+            {analysis.seasons.length > 1 && (
+              <p className="text-sm text-gray-500 mt-2">
+                Also compatible with {analysis.seasons.slice(1).join(', ')}
+              </p>
+            )}
           </div>
 
           {/* Lighting Condition */}
@@ -74,10 +99,14 @@ const AnalysisResults = () => {
             <p className="text-sm">{getLightingAdvice()}</p>
           </div>
 
-          {/* Lip Colors */}
+          {/* Lip Colors - Now with click functionality */}
           <div>
             <h3 className="font-bold mb-3">Recommended Lip Colors:</h3>
-            <LipColorPalette colors={SEASONAL_LIP_COLORS[analysis.seasons[0]]} />
+            <p className="text-sm text-gray-600 mb-4">Click on a shade to try it on</p>
+            <LipColorPalette 
+              colors={seasonalData.lipColors} 
+              onSelectColor={handleColorSelect}
+            />
           </div>
 
           {/* Analysis Details */}
@@ -85,15 +114,6 @@ const AnalysisResults = () => {
             <h3 className="font-bold mb-2">Analysis Details:</h3>
             <AnalysisMetrics analysis={analysis} />
           </div>
-
-          {/* Export Button */}
-          <button
-            onClick={exportAnalysisData}
-            className="w-full bg-blue-100 hover:bg-blue-200 text-blue-600 px-6 py-3 rounded-full flex items-center justify-center gap-2 transition-colors"
-          >
-            <History className="w-5 h-5" />
-            Export Analysis Data
-          </button>
         </div>
       </div>
     </div>

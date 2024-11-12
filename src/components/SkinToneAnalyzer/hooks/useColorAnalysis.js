@@ -93,8 +93,8 @@ export const useColorAnalysis = () => {
 
       // Determine undertone and lightness
       const hueAngle = Math.atan2(b, a) * (180/Math.PI);
-      const undertone = hueAngle > 65 ? 'Warm' : hueAngle < 55 ? 'Cool' : 'Neutral';
-      const lightness = L > 70 ? 'High' : L > 50 ? 'Medium' : 'Low';
+      const undertone = hueAngle > 60 ? 'Warm' : hueAngle < 60 ? 'Cool' : 'Neutral';
+      const lightness = L > 66 ? 'High' : L > 45 ? 'Medium' : 'Low';
 
       // Generate analysis results
       const newAnalysis = {

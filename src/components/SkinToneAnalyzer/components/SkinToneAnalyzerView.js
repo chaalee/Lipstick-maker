@@ -148,7 +148,7 @@ const SkinToneAnalyzerView = () => {
       }}>
       <div className="max-w-6xl mx-auto p-4">
         {/* Title */}
-        <h1 className="text-4xl font-light italic text-red-500 mb-8 text-center">
+        <h1 className="text-5xl font-playfair font-light italic text-red-500 mb-3 text-center leading-relaxed">
           Extracting Your Colors...
         </h1>
 
