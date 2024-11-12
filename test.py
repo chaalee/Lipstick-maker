@@ -1,4 +1,5 @@
 print("Lipstick")
 print("Yes")
 print("No")
-print("k")
+
+print("Maybe")
