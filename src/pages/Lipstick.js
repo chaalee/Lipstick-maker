@@ -8,17 +8,17 @@ const ProcessingAnimation = ({ currentBox, isProcessing }) => {
 
   return (
     <div className="min-h-screen bg-[#FDE8E9] flex flex-col items-center justify-center p-6">
-      <h1 className="font-playfair italic text-red-500 text-4xl mb-16">
+      <h1 className="font-playfair italic text-red-500 text-5xl mb-16 tracking-widest">
         Processing...
       </h1>
       
-      <div className="flex gap-8 justify-center items-center w-full max-w-2xl">
+      <div className="flex gap-8 justify-center items-center w-full max-w-3xl">
         {[0, 1, 2].map((boxIndex) => (
           <div
             key={boxIndex}
             className={`w-64 h-80 rounded-3xl transition-all duration-300 
                       ${boxIndex === currentBox ? 'border-2 border-red-500' : 'border border-[#FFF1F2]'}
-                      bg-[#FFF1F2]`}
+                      bg-[#FDF6E9]`}
           />
         ))}
       </div>
