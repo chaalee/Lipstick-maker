@@ -1,4 +1,5 @@
 # Python
 backend/__pycache__/
 backend/venv/
-*.pyc
+*.pycnode_modules/
+node_modules/.cache/

@@ -1,123 +1,87 @@
 # backend/server.py
 from fastapi import FastAPI, WebSocket
+import serial
 import serial.tools.list_ports
-from serial import Serial, SerialException
 import asyncio
 import json
 
 app = FastAPI()
 
 def find_pico_port():
-    """Try different possible ports to find the Pico"""
+    """Find Pico's port"""
+    # Specifically look for the USB-Serial port
+    target_port = '/dev/tty.usbserial-A104VDBO'  # Serial connection port
+    
     try:
-        # List all available ports
-        ports = serial.tools.list_ports.comports()
-        
-        for port in ports:
-            # Look for Pico's vendor ID
-            if "2E8A" in port.hwid.upper():  # Raspberry Pi Pico vendor ID
-                try:
-                    pico = Serial(port.device, 115200, timeout=1)
-                    print(f"Connected to Pico on {port.device}")
-                    return pico
-                except SerialException as e:
-                    print(f"Error connecting to {port.device}: {e}")
-                    continue
-
-        # If Pico not found, try common port names
-        possible_ports = [
-            '/dev/ttyACM0',  # Linux
-            '/dev/ttyACM1',
-            'COM3',          # Windows
-            'COM4',
-            '/dev/tty.Bluetooth-Incoming-Port'  # Mac
-        ]
-        
-        for port in possible_ports:
-            try:
-                pico = Serial(port, 115200, timeout=1)
-                print(f"Connected to Pico on {port}")
-                return pico
-            except (SerialException, OSError):
-                continue
-                
-        print("No Pico device found")
-        return None
-        
+        ser = serial.Serial(
+            port=target_port,
+            baudrate=115200,
+            bytesize=serial.EIGHTBITS,
+            parity=serial.PARITY_NONE,
+            stopbits=serial.STOPBITS_ONE,
+            timeout=1
+        )
+        print(f"Connected to Pico on {target_port}")
+        return ser
     except Exception as e:
-        print(f"Error searching for Pico: {e}")
+        print(f"Error connecting to {target_port}: {e}")
         return None
 
-# Try to connect to Pico
+# Initialize Pico connection
 pico = find_pico_port()
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
+    print("WebSocket connected")
     
-    global pico
     if not pico:
-        pico = find_pico_port()
+        await websocket.send_text(json.dumps({
+            "status": "error",
+            "message": "Pico not connected"
+        }))
+        return
     
-    while True:
-        try:
+    try:
+        while True:
             data = await websocket.receive_text()
             command = json.loads(data)
+            print(f"Received command: {command}")
             
             if command["action"] == "move_conveyor":
-                if pico:
-                    try:
-                        # Send command to Pico
-                        pico.write(b'move\n')
-                        pico.flush()
-                        
-                        # Wait for responses with timeout
-                        while True:
-                            if pico.in_waiting:
-                                response = pico.readline().decode().strip()
-                                if response:
-                                    print(f"Received from Pico: {response}")
-                                    
-                                    # Send response to frontend
-                                    await websocket.send_text(json.dumps({
-                                        "status": response,
-                                        "position": int(response.split('_')[1]) - 1 
-                                        if response.startswith('moving_') else None
-                                    }))
-                                    
-                                    # Check if sequence is complete
-                                    if response == 'sequence_complete':
-                                        break
-                                        
-                            await asyncio.sleep(0.1)
-                            
-                    except Exception as e:
-                        print(f"Serial error: {e}")
-                        pico = find_pico_port()
+                # Send command to Pico
+                pico.write(b'move\n')
+                print("Command sent to Pico")
+                
+                # Wait for response with timeout
+                start_time = asyncio.get_event_loop().time()
+                while True:
+                    if pico.in_waiting > 0:
+                        response = pico.readline().decode().strip()
+                        print(f"Pico response: {response}")
                         await websocket.send_text(json.dumps({
-                            "status": "error", 
-                            "message": "Lost connection to Pico"
+                            "status": response
                         }))
-                else:
-                    await websocket.send_text(json.dumps({
-                        "status": "error", 
-                        "message": "Pico not connected"
-                    }))
+                        break
                     
-        except Exception as e:
-            print(f"Error in websocket: {e}")
-            break
-
-# Add startup and shutdown events
-@app.on_event("startup")
-async def startup_event():
-    global pico
-    if not pico:
-        pico = find_pico_port()
+                    # Check for timeout after 5 seconds
+                    if asyncio.get_event_loop().time() - start_time > 5:
+                        print("Response timeout")
+                        await websocket.send_text(json.dumps({
+                            "status": "error",
+                            "message": "Response timeout"
+                        }))
+                        break
+                    
+                    await asyncio.sleep(0.1)
+                
+    except Exception as e:
+        print(f"WebSocket error: {e}")
+        if pico:
+            pico.close()
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    global pico
     if pico:
         pico.close()
 
