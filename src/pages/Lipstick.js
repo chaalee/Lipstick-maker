@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Edit2 } from 'lucide-react';
+import { wsService } from '../services/websocket';
 
 const ProcessingAnimation = ({ currentBox, isProcessing }) => {
   if (!isProcessing) return null;
@@ -39,19 +40,31 @@ const LipstickPage = () => {
   };
 
   useEffect(() => {
-    let intervalId;
-    if (isProcessing) {
-      intervalId = setInterval(() => {
-        setCurrentBox(prev => (prev + 1) % 3);
-      }, 800); // Moves to next box every 800ms
-    }
-    return () => clearInterval(intervalId);
-  }, [isProcessing]);
+    wsService.connect().catch(console.error);
+    
+    wsService.onStatus((status) => {
+      if (status.startsWith('moving_')) {
+        const position = parseInt(status.split('_')[1]) - 1;
+        setCurrentBox(position);
+      } else if (status === 'done') {
+        // Add delay before finishing
+        setTimeout(() => {
+          setIsProcessing(false);
+        }, 1000);
+      }
+    });
 
-  const handleTryOn = () => {
+    return () => wsService.disconnect();
+  }, []);
+
+  const handleTryOn = async () => {
     setIsProcessing(true);
-    // You can add your actual processing logic here
-    // When done, call setIsProcessing(false)
+    try {
+      await wsService.moveConveyor();
+    } catch (error) {
+      console.error('Error controlling conveyor:', error);
+      setIsProcessing(false);
+    }
   };
 
   if (isProcessing) {
@@ -61,7 +74,15 @@ const LipstickPage = () => {
   return (
     <div className="relative min-h-screen bg-gradient-to-b from-pink-50 to-pink-100">
       <div className="min-h-screen flex flex-col items-center justify-center p-6">
-        <div className="bg-white rounded-3xl shadow-lg p-8 max-w-4xl w-full mx-auto">
+              {/* Background */}
+      <div className="z-0 absolute inset-0">
+        <img
+          src="/images/bg_page1.png"
+          alt="Background"
+          className="object-cover w-full h-full"
+        />
+      </div>
+        <div className="z-20 bg-white rounded-3xl shadow-lg p-8 max-w-4xl w-full mx-auto">
           <div className="flex flex-col md:flex-row gap-8 items-center">
             {/* Left side - Color Circle */}
             <div className="relative">
@@ -79,7 +100,7 @@ const LipstickPage = () => {
             <div className="flex-1 text-center md:text-left">
               <div className="flex items-center justify-center md:justify-start gap-2 mb-4">
                 <Edit2 className="w-5 h-5 text-gray-500" />
-                <span className="text-gray-500">Shade Found!!!</span>
+                <span className="text-gray-500">Selected Shade</span>
               </div>
 
               <h1 className="font-playfair italic text-4xl md:text-5xl mb-4">
