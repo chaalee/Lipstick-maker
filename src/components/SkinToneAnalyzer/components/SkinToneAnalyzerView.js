@@ -1,11 +1,10 @@
-// src/components/SkinToneAnalyzer/components/SkinToneAnalyzerView.js
 import React, { useRef } from 'react';
 import { Camera } from 'lucide-react';
 import { useSkinTone } from '../context/SkinToneContext';
-import { useColorAnalysis } from '../hooks/useColorAnalysis';
+import { useFaceAnalysis } from '../hooks';
 import AnalysisResults from './AnalysisResults';
 
-// Import any background images if needed
+// Import background image
 import pinkBg from '../assets/pink_gradient_bg.jpg';
 
 const WebcamCapture = ({ onCapture, isAnalyzing }) => {
@@ -21,7 +20,6 @@ const WebcamCapture = ({ onCapture, isAnalyzing }) => {
             width: 640, 
             height: 480, 
             facingMode: 'user',
-            // Optional: add constraints for better quality
             aspectRatio: 4/3,
             frameRate: { ideal: 30 }
           } 
@@ -36,7 +34,6 @@ const WebcamCapture = ({ onCapture, isAnalyzing }) => {
     };
     startVideo();
 
-    // Cleanup function
     return () => {
       if (videoRef.current?.srcObject) {
         videoRef.current.srcObject.getTracks().forEach(track => track.stop());
@@ -58,11 +55,12 @@ const WebcamCapture = ({ onCapture, isAnalyzing }) => {
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     context.restore();
 
-    onCapture(context);
+    onCapture(context, video);
   };
 
   return (
     <div className="relative">
+      {/* Camera Feed */}
       <video 
         ref={videoRef}
         autoPlay 
@@ -75,19 +73,26 @@ const WebcamCapture = ({ onCapture, isAnalyzing }) => {
         height="480" 
         className="hidden"
       />
-      {/* Oval Guide */}
-      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-64 h-80 border-2 border-white rounded-full"/>
+      {/* Face Guide Overlay */}
+      <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+        <div className="w-64 h-80 border-2 border-white rounded-full relative">
+          <div className="absolute top-1/3 w-full border-t border-white border-dashed opacity-50" />
+          <div className="absolute left-1/2 h-full border-l border-white border-dashed opacity-50" />
+        </div>
+      </div>
       
-      <button
-        onClick={handleCapture}
-        disabled={isAnalyzing}
-        className="absolute bottom-4 left-1/2 transform -translate-x-1/2 
-                   bg-red-100 hover:bg-red-200 text-red-600 px-6 py-3 rounded-full 
-                   flex items-center gap-2 disabled:opacity-50 transition-colors"
-      >
-        <Camera size={20} />
-        {isAnalyzing ? 'Analyzing...' : 'Analyze'}
-      </button>
+      {/* Capture Button - Always at the bottom */}
+      <div className="absolute bottom-4 left-0 right-0 flex justify-center">
+        <button
+          onClick={handleCapture}
+          disabled={isAnalyzing}
+          className="bg-red-100 hover:bg-red-200 text-red-600 px-6 py-3 rounded-full 
+                     flex items-center gap-2 disabled:opacity-50 transition-colors"
+        >
+          <Camera size={20} />
+          {isAnalyzing ? 'Analyzing...' : 'Analyze'}
+        </button>
+      </div>
     </div>
   );
 };
@@ -99,11 +104,11 @@ const SkinToneAnalyzerView = () => {
     lightCondition 
   } = useSkinTone();
   
-  const { analyzeSkinTone } = useColorAnalysis();
+  const { analyzeSkinTone } = useFaceAnalysis();
 
-  const handleAnalysis = async (context) => {
+  const handleAnalysis = async (context, video) => {
     try {
-      await analyzeSkinTone(context);
+      await analyzeSkinTone(context, video);
     } catch (err) {
       console.error('Error during analysis:', err);
     }
@@ -138,13 +143,13 @@ const SkinToneAnalyzerView = () => {
 
   return (
     <div       
-        style={{
-            backgroundImage: `url(${pinkBg})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
-            backgroundRepeat: 'no-repeat',
-            minHeight: '100vh',
-            width: '100%'
+      style={{
+        backgroundImage: `url(${pinkBg})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        minHeight: '100vh',
+        width: '100%'
       }}>
       <div className="max-w-6xl mx-auto p-4">
         {/* Title */}
@@ -152,16 +157,23 @@ const SkinToneAnalyzerView = () => {
           Extracting Your Colors...
         </h1>
 
-        {/* Error Display */}
-        {error && (
-          <div className="mb-4 p-4 bg-white/80 border border-red-400 text-red-700 rounded-3xl">
-            <p>{error}</p>
-          </div>
-        )}
-
-        {/* Lighting Status */}
-        <div className={`mb-4 text-center ${lightingStatus.color}`}>
-          <p>{lightingStatus.message}</p>
+        {/* Status Bar - Fixed Height Container */}
+        <div className="h-10 mb-4">
+          {/* Error Message - Absolute positioning within container */}
+          {error && (
+            <div className="absolute left-1/2 transform -translate-x-1/2 z-10 w-full max-w-3xl">
+              <div className="mx-4 p-2 bg-white/90 border border-red-400 text-red-700 rounded-xl shadow-lg text-center">
+                {error}
+              </div>
+            </div>
+          )}
+          
+          {/* Lighting Status - Only shown when no error */}
+          {!error && (
+            <div className={`text-center ${lightingStatus.color}`}>
+              <p>{lightingStatus.message}</p>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8">
@@ -169,7 +181,7 @@ const SkinToneAnalyzerView = () => {
           <div className="flex-1">
             <div className="bg-white rounded-3xl p-6 shadow-lg">
               <p className="text-center text-xl mb-4">
-                Place your face in the guide and ensure good lighting.
+                Center your face in the guide and ensure good lighting.
               </p>
               
               <WebcamCapture 
@@ -187,9 +199,10 @@ const SkinToneAnalyzerView = () => {
         <div className="mt-8 p-6 bg-white rounded-3xl shadow-lg">
           <h2 className="text-2xl font-light mb-4">Tips for Best Results:</h2>
           <ul className="space-y-2 text-gray-700">
+            <li>• Center your face within the oval guide</li>
+            <li>• Keep your face level with the horizontal line</li>
             <li>• Ensure your face is well-lit with natural light</li>
             <li>• Remove any makeup for most accurate results</li>
-            <li>• Face the camera directly within the oval guide</li>
             <li>• Avoid strong colored lighting or reflections</li>
             <li>• Keep still during the analysis</li>
           </ul>
