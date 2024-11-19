@@ -9,14 +9,13 @@ const NavBar = () => {
 
     const handleHomeClick = async () => {
         try {
-            // First return conveyor to home position
-            await wsService.returnHome();
-            // Then navigate to home page
-            navigate('/');
+            console.log('Sending home command');  // Debug print
+            await wsService.returnHome();  // Send home command first
+            await new Promise(resolve => setTimeout(resolve, 1000));  // Wait a bit
+            navigate('/');  // Then navigate
         } catch (error) {
             console.error('Error returning home:', error);
-            // Navigate anyway if there's an error
-            navigate('/');
+            navigate('/');  // Navigate anyway if error
         }
     };
 

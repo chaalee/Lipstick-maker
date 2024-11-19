@@ -1,176 +1,110 @@
-// server.js
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const Ingredients = require('./models/ingredients'); // Changed to use Ingredients model
+const WebSocket = require('ws');
+const serial = require('serialport');
+const Ingredients = require('./models/ingredients');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-const dbUrl = "mongodb+srv://Kirana:Lipstick@cluster0.jru2h.mongodb.net/SkintoneAnalyzer";
-
-mongoose
-    .connect(dbUrl)
+// MongoDB connection
+mongoose.connect("mongodb+srv://Kirana:Lipstick@cluster0.jru2h.mongodb.net/SkintoneAnalyzer")
     .then(() => console.log("Connected to MongoDB Atlas"))
     .catch((err) => console.error("Error connecting to MongoDB:", err));
 
-// Get all ingredients data
+// Serial connection to Pico
+const pico = new serial.SerialPort({
+    path: '/dev/tty.usbserial-A104VDBO',
+    baudRate: 115200
+});
+
+// WebSocket server
+const wss = new WebSocket.Server({ port: 8000 });
+
+wss.on('connection', async (ws) => {
+    console.log('WebSocket connected');
+
+    ws.on('message', async (message) => {
+        try {
+            const data = JSON.parse(message);
+            console.log('Received from frontend:', data);
+
+            if (data.action === 'move_conveyor' && data.lipstick) {
+                console.log('Looking up lipstick:', data.lipstick);
+                
+                // Find lipstick in nested structure
+                const season = await Ingredients.findOne({
+                    'lipColors.name': data.lipstick
+                });
+
+                if (!season) {
+                    console.log('Lipstick not found:', data.lipstick);
+                    ws.send(JSON.stringify({ error: 'Lipstick not found' }));
+                    return;
+                }
+
+                // Find the specific lipstick in the season's lipColors array
+                const lipstick = season.lipColors.find(l => l.name === data.lipstick);
+                console.log('Found lipstick data:', lipstick);
+
+                const command = {
+                    action: 'move',
+                    lipstick: lipstick.name,
+                    valveTimings: {
+                        valve1: lipstick.ingredients.purple || 0,
+                        valve2: lipstick.ingredients.oros || 0,
+                        valve3: lipstick.ingredients.red || 0
+                    }
+                };
+                
+                console.log('Sending to Pico:', command);
+                pico.write(JSON.stringify(command) + '\n');
+            }
+            else if (data.action === 'home') {
+                console.log('Sending home command to Pico');
+                // Send proper JSON command for home
+                const command = {
+                    action: 'home'
+                };
+                pico.write(JSON.stringify(command) + '\n');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            ws.send(JSON.stringify({ error: error.message }));
+        }
+    });
+});
+
+// REST endpoints
 app.get("/api/ingredients", async (req, res) => {
     try {
-        console.log("Fetching data from Lipstick_ingredients collection...");
         const ingredientsData = await Ingredients.find();
-        console.log("Data retrieved:", ingredientsData);
         res.json(ingredientsData);
     } catch (error) {
-        console.error("Error fetching data:", error);
         res.status(500).json({ message: error.message });
     }
 });
 
-// Get ingredients for a specific season
-app.get("/api/ingredients/:season", async (req, res) => {
+// Update the lipsticks endpoint to show all lipsticks
+app.get("/api/lipsticks", async (req, res) => {
     try {
-        const seasonData = await Ingredients.findOne({ season: req.params.season });
-        if (!seasonData) {
-            return res.status(404).json({ message: "Season not found" });
-        }
-        res.json(seasonData);
+        const seasons = await Ingredients.find();
+        const allLipsticks = seasons.reduce((acc, season) => {
+            return [...acc, ...season.lipColors.map(lipstick => ({
+                name: lipstick.name,
+                season: season.season,
+                // description: season.description,
+                ingredients: lipstick.ingredients,
+                color: lipstick.color
+            }))];
+        }, []);
+        res.json(allLipsticks);
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
 });
 
-// Get ingredients for a specific lipstick
-app.get("/api/ingredients/:season/:lipstickName", async (req, res) => {
-    try {
-        const seasonData = await Ingredients.findOne({ season: req.params.season });
-        if (!seasonData) {
-            return res.status(404).json({ message: "Season not found" });
-        }
-
-        const lipstick = seasonData.lipColors.find(l => 
-            l.name.toLowerCase() === req.params.lipstickName.toLowerCase()
-        );
-
-        if (!lipstick) {
-            return res.status(404).json({ message: "Lipstick not found" });
-        }
-
-        res.json({
-            name: lipstick.name,
-            ingredients: lipstick.ingredients
-        });
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
-
-// Get dispenser instructions
-app.get("/api/dispenser/:season/:lipstickName", async (req, res) => {
-    try {
-        const seasonData = await Ingredients.findOne({ season: req.params.season });
-        if (!seasonData) {
-            return res.status(404).json({ message: "Season not found" });
-        }
-
-        const lipstick = seasonData.lipColors.find(l => 
-            l.name.toLowerCase() === req.params.lipstickName.toLowerCase()
-        );
-
-        if (!lipstick) {
-            return res.status(404).json({ message: "Lipstick not found" });
-        }
-
-        const instructions = {
-            name: lipstick.name,
-            dispenserInstructions: {
-                purple: `Dispense ${lipstick.ingredients.purple} pumps`,
-                red: `Dispense ${lipstick.ingredients.red} pumps`,
-                oros: `Dispense ${lipstick.ingredients.oros} pumps`
-            },
-            totalPumps: lipstick.ingredients.purple + 
-                       lipstick.ingredients.red + 
-                       lipstick.ingredients.oros
-        };
-
-        res.json(instructions);
-    } catch (error) {
-        res.status(500).json({ message: error.message });
-    }
-});
-
-const startServer = async (port) => {
-    try {
-        await app.listen(port);
-        console.log(`Server is running on port ${port}`);
-    } catch (error) {
-        if (error.code === 'EADDRINUSE') {
-            console.log(`Port ${port} is busy, trying ${port + 1}`);
-            startServer(port + 1);
-        } else {
-            console.error('Error starting server:', error);
-        }
-    }
-};
-
-startServer(5001);
-
-
-// // server.js
-// const express = require("express");
-// const mongoose = require("mongoose");
-// const cors = require("cors");
-// const Season = require('./models/Season'); // Import the model
-
-// const app = express();
-// app.use(cors());
-// app.use(express.json());
-
-// const dbUrl = "mongodb+srv://Kirana:Lipstick@cluster0.jru2h.mongodb.net/SkintoneAnalyzer";
-
-// mongoose
-//     .connect(dbUrl)
-//     .then(() => console.log("Connected to MongoDB Atlas"))
-//     .catch((err) => console.error("Error connecting to MongoDB:", err));
-
-// // API Routes
-// app.get("/api/seasons", async (req, res) => {
-//     try {
-//         console.log("Fetching data from seasonalData collection...");
-//         const seasonalData = await Season.find();
-//         console.log("Data retrieved:", seasonalData);
-//         res.json(seasonalData);
-//     } catch (error) {
-//         console.error("Error fetching data:", error);
-//         res.status(500).json({ message: error.message });
-//     }
-// });
-
-// app.get("/api/seasons/:season", async (req, res) => {
-//     try {
-//         const seasonData = await Season.findOne({ season: req.params.season });
-//         if (!seasonData) {
-//             return res.status(404).json({ message: "Season not found" });
-//         }
-//         res.json(seasonData);
-//     } catch (error) {
-//         res.status(500).json({ message: error.message });
-//     }
-// });
-
-// const startServer = async (port) => {
-//     try {
-//         await app.listen(port);
-//         console.log(`Server is running on port ${port}`);
-//     } catch (error) {
-//         if (error.code === 'EADDRINUSE') {
-//             console.log(`Port ${port} is busy, trying ${port + 1}`);
-//             startServer(port + 1);
-//         } else {
-//             console.error('Error starting server:', error);
-//         }
-//     }
-// };
-
-// startServer(5001);
+// Start server
+app.listen(5001, () => console.log('REST Server running on port 5001'));

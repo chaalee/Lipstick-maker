@@ -4,21 +4,46 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Edit2 } from 'lucide-react';
 import { wsService } from '../services/websocket';
 
-const ProcessingAnimation = ({ currentBox, isProcessing }) => {
+const ProcessingAnimation = ({ isProcessing }) => {
+  const [activeBox, setActiveBox] = useState(0);
+
+  useEffect(() => {
+    if (isProcessing) {
+      const timer = setInterval(() => {
+        setActiveBox((prev) => (prev + 1) % 3);
+      }, 2000); // Move every 2 seconds
+
+      return () => clearInterval(timer);
+    }
+  }, [isProcessing]);
+
   if (!isProcessing) return null;
 
   return (
     <div className="min-h-screen bg-[#FDE8E9] flex flex-col items-center justify-center p-6">
-      <h1 className="font-playfair italic text-red-500 text-5xl mb-16 tracking-widest">
+      {/* Background */}
+      <div className="absolute inset-0">
+        <img
+          src="/images/bg_page1.png"
+          alt="Background"
+          className="object-cover w-full h-full"
+        />
+      </div>
+      <h1 className="z-20 font-playfair italic text-red-500 text-5xl mb-16 tracking-widest">
         Processing...
       </h1>
       
-      <div className="flex gap-8 justify-center items-center w-full max-w-3xl">
+      <div className="z-20 flex gap-8 justify-center items-center w-full max-w-3xl">
         {[0, 1, 2].map((boxIndex) => (
           <div
             key={boxIndex}
-            className={`w-64 h-80 rounded-3xl transition-all duration-300 
-                      ${boxIndex === currentBox ? 'border-2 border-red-500' : 'border border-[#FFF1F2]'}
+            style={{ 
+              transition: 'all 0.7s ease-in-out'
+            }}
+            className={`w-64 h-80 rounded-3xl 
+                      ${boxIndex === activeBox ? 
+                        'border-2 border-red-500 shadow-lg shadow-red-200 scale-105' : 
+                        'border border-[#FFF1F2]'}
                       bg-[#FDF6E9]`}
           />
         ))}
@@ -31,7 +56,6 @@ const LipstickPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [isProcessing, setIsProcessing] = useState(false);
-  const [currentBox, setCurrentBox] = useState(0);
   
   const shadeData = location.state?.shade || {
     colorType: 'Coral Pink',
@@ -42,25 +66,24 @@ const LipstickPage = () => {
   useEffect(() => {
     wsService.connect().catch(console.error);
     
-    wsService.onStatus((status) => {
-      if (status.startsWith('moving_')) {
-        const position = parseInt(status.split('_')[1]) - 1;
-        setCurrentBox(position);
-      } else if (status === 'done') {
-        // Add delay before finishing
+    wsService.onStatus((data) => {
+      console.log('Received status:', data);
+      
+      if (data === 'sequence_complete') {
         setTimeout(() => {
           setIsProcessing(false);
-        }, 1000);
+        }, 2000);
       }
     });
-
+  
     return () => wsService.disconnect();
   }, []);
 
   const handleTryOn = async () => {
     setIsProcessing(true);
     try {
-      await wsService.moveConveyor();
+      console.log('Selected shade data:', shadeData);
+      await wsService.moveConveyor(shadeData.colorType);
     } catch (error) {
       console.error('Error controlling conveyor:', error);
       setIsProcessing(false);
@@ -68,13 +91,13 @@ const LipstickPage = () => {
   };
 
   if (isProcessing) {
-    return <ProcessingAnimation currentBox={currentBox} isProcessing={isProcessing} />;
+    return <ProcessingAnimation isProcessing={isProcessing} />;
   }
 
   return (
-    <div className="relative min-h-screen bg-gradient-to-b from-pink-50 to-pink-100">
+    <div className="relative min-h-screen">
       <div className="min-h-screen flex flex-col items-center justify-center p-6">
-              {/* Background */}
+      {/* Background */}
       <div className="z-0 absolute inset-0">
         <img
           src="/images/bg_page1.png"
@@ -113,7 +136,7 @@ const LipstickPage = () => {
 
               <button
                 onClick={handleTryOn}
-                className="font-serif italic bg-red-500 hover:bg-red-600 text-white 
+                className="font-serif italic bg-rose-500 hover:bg-rose-600 text-white 
                          text-xl px-12 py-3 rounded-full transform transition-all
                          hover:scale-105 active:scale-95"
               >
