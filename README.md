@@ -31,11 +31,11 @@ This project minimizes cosmetic waste, enhances personalization, and demonstrate
 ```mermaid
 graph TD
     subgraph Client
-        A[User (Webcam + Browser)]
-        B[Frontend (React + Tailwind)]
+        A[User (Webcam and Browser)]
+        B[Frontend (React and Tailwind)]
     end
     subgraph Server
-        C[Backend (Node.js + Express)]
+        C[Backend (Node.js and Express)]
         D[WebSocket (Realtime)]
         E[MongoDB Atlas]
     end
