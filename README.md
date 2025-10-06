@@ -28,18 +28,25 @@ This project minimizes cosmetic waste, enhances personalization, and demonstrate
 
 ## 🏗️ System Architecture
 
-User (Webcam + Browser)
-│
-▼
-Frontend (React, Tailwind)
-│
-▼
-Backend Server (Node.js, Express)
-│
-┌───────────────┬───────────────┐
-│               │               │
-▼               ▼               ▼
-MongoDB     Raspberry Pi Pico   WebSocket (Realtime)
+```mermaid
+graph TD
+    subgraph Client
+        A[User (Webcam + Browser)]
+        B[Frontend (React + Tailwind)]
+    end
+    subgraph Server
+        C[Backend (Node.js + Express)]
+        D[WebSocket (Realtime)]
+        E[MongoDB Atlas]
+    end
+    subgraph Hardware
+        F[Raspberry Pi Pico]
+    end
+
+    A --> B --> C
+    C --> D
+    C --> E
+    C --> F
 
 ---
 
