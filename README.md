@@ -29,26 +29,12 @@ This project minimizes cosmetic waste, enhances personalization, and demonstrate
 ## 🏗️ System Architecture
 
 ```mermaid
-graph TD
-    subgraph Client
-        A[User: Webcam & Browser]
-        B[Frontend: React + Tailwind]
-    end
-
-    subgraph Server
-        C[Backend: Node.js + Express]
-        D[WebSocket: Realtime Connection]
-        E[Database: MongoDB Atlas]
-    end
-
-    subgraph Hardware
-        F[Raspberry Pi Pico: Control System]
-    end
-
-    A --> B --> C
-    C --> D
-    C --> E
-    C --> F
+graph LR
+    A[User: Webcam & Browser] --> B[Frontend: React + Tailwind]
+    B --> C[Backend: Node.js + Express]
+    C --> D[MongoDB Atlas]
+    C --> E[Raspberry Pi Pico]
+    C --> F[WebSocket: Realtime]
 
 ---
 
