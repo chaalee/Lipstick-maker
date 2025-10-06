@@ -27,27 +27,19 @@ This project minimizes cosmetic waste, enhances personalization, and demonstrate
 ---
 
 ## 🏗️ System Architecture
-+—————————————————––+
-|                    User Interface                     |
-|   (React.js + Tailwind + Webcam Skin Tone Detection)  |
-+—————————————————––+
-| HTTP + WebSocket
-v
-+—————————————————––+
-|                  Backend Server (Node.js)             |
-| Express + MongoDB + Hardware API + WebSocket Control  |
-+—————————————————––+
-| UART Serial (115200 baud)
-v
-+—————————————————––+
-|             Raspberry Pi Pico Microcontroller         |
-|  Stepper Motor + Solenoid Valve + DAC + Relay Control |
-+—————————————————––+
-| Air Pressure + Motion
-v
-+—————————————————––+
-|         Pneumatic System + Conveyor Belt System       |
-+—————————————————––+
+
+User (Webcam + Browser)
+│
+▼
+Frontend (React, Tailwind)
+│
+▼
+Backend Server (Node.js, Express)
+│
+┌───────────────┬───────────────┐
+│               │               │
+▼               ▼               ▼
+MongoDB     Raspberry Pi Pico   WebSocket (Realtime)
 
 ---
 
