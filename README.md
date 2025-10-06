@@ -1,4 +1,4 @@
-# Lipstick-maker: An Automated Lipstick Manufacturing Platform with AI-Driven Skin Tone Analysis and Color Matching
+# Lipstick Maker: An Automated Lipstick Manufacturing Platform with AI-Driven Skin Tone Analysis and Color Matching
 
 > **Automated lipstick production with AI-based skin tone analysis and Raspberry Pi Pico-controlled color blending.**
 
