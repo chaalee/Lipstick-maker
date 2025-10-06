@@ -31,16 +31,18 @@ This project minimizes cosmetic waste, enhances personalization, and demonstrate
 ```mermaid
 graph TD
     subgraph Client
-        A[User (Webcam and Browser)]
-        B[Frontend (React and Tailwind)]
+        A[User: Webcam & Browser]
+        B[Frontend: React + Tailwind]
     end
+
     subgraph Server
-        C[Backend (Node.js and Express)]
-        D[WebSocket (Realtime)]
-        E[MongoDB Atlas]
+        C[Backend: Node.js + Express]
+        D[WebSocket: Realtime Connection]
+        E[Database: MongoDB Atlas]
     end
+
     subgraph Hardware
-        F[Raspberry Pi Pico]
+        F[Raspberry Pi Pico: Control System]
     end
 
     A --> B --> C
