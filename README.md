@@ -27,7 +27,6 @@ This project minimizes cosmetic waste, enhances personalization, and demonstrate
 ---
 
 ## 🏗️ System Architecture
-
 +—————————————————––+
 |                    User Interface                     |
 |   (React.js + Tailwind + Webcam Skin Tone Detection)  |
@@ -49,6 +48,7 @@ v
 +—————————————————––+
 |         Pneumatic System + Conveyor Belt System       |
 +—————————————————––+
+
 ---
 
 ## 🧩 System Components
